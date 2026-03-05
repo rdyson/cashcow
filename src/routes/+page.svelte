@@ -9,8 +9,35 @@
 	import { calculateTakeHome, selfTest } from '$lib/tax.js';
 	import type { ClientProfile, ProjectionYear, ProjectionOutcome } from '$lib/projection.js';
 	import { Chart, registerables } from 'chart.js';
+	import { theme } from '$lib/theme.svelte';
 
 	Chart.register(...registerables);
+
+	// ─── Chart theme colours ───────────────────────────────────────────────────
+
+	function chartColors(isDark: boolean) {
+		if (isDark) {
+			return {
+				legendColor: '#e2e8f0',
+				tickColor: '#94a3b8',
+				gridColor: 'rgba(255,255,255,0.06)',
+				tooltipBg: '#1e293b',
+				tooltipTitle: '#f1f5f9',
+				tooltipBody: '#cbd5e1',
+				axisLabelColor: '#94a3b8',
+			};
+		} else {
+			return {
+				legendColor: '#1e293b',
+				tickColor: '#475569',
+				gridColor: 'rgba(0,0,0,0.07)',
+				tooltipBg: '#1e293b',
+				tooltipTitle: '#f8fafc',
+				tooltipBody: '#94a3b8',
+				axisLabelColor: '#475569',
+			};
+		}
+	}
 
 	// ─── State ────────────────────────────────────────────────────────────────
 
@@ -28,8 +55,8 @@
 		inflationRate: 0.025,
 	});
 
-	let years = $state<ProjectionYear[]>([]);
-	let outcome = $state<ProjectionOutcome | null>(null);
+	let years = $derived(runProjection(profile));
+	let outcome = $derived(classifyOutcome(years));
 	let taxBreakdown = $derived(calculateTakeHome(profile.salary));
 	let selfTestPassed = $state<boolean | null>(null);
 
@@ -38,16 +65,11 @@
 
 	// ─── Compute ───────────────────────────────────────────────────────────────
 
-	function compute() {
-		years = runProjection(profile);
-		outcome = classifyOutcome(years);
-		updateChart();
-	}
-
+	// Update chart whenever years or theme changes
 	$effect(() => {
-		// Reactive: recompute whenever profile changes
-		const _ = { ...profile };
-		compute();
+		const _ = years; // track years
+		const isDark = theme.isDark; // track theme
+		updateChart(isDark);
 	});
 
 	// ─── Chart ────────────────────────────────────────────────────────────────
@@ -62,15 +84,53 @@
 		return { labels, wealth, pensionPot, isaPot, surplus };
 	}
 
-	function updateChart() {
+	function buildChartOptions(isDark: boolean) {
+		const c = chartColors(isDark);
+		return {
+			responsive: true,
+			maintainAspectRatio: false,
+			interaction: { mode: 'index' as const, intersect: false },
+			plugins: {
+				legend: {
+					labels: { color: c.legendColor, font: { family: 'inherit', size: 12 } },
+				},
+				tooltip: {
+					backgroundColor: c.tooltipBg,
+					titleColor: c.tooltipTitle,
+					bodyColor: c.tooltipBody,
+					callbacks: {
+						label: (ctx: any) => ` ${ctx.dataset.label}: £${ctx.parsed.y.toLocaleString()}k`,
+					},
+				},
+			},
+			scales: {
+				x: {
+					ticks: { color: c.tickColor, maxTicksLimit: 15 },
+					grid: { color: c.gridColor },
+					title: { display: true, text: 'Age', color: c.axisLabelColor },
+				},
+				y: {
+					ticks: {
+						color: c.tickColor,
+						callback: (v: any) => `£${Number(v).toLocaleString()}k`,
+					},
+					grid: { color: c.gridColor },
+					title: { display: true, text: 'Value (£k)', color: c.axisLabelColor },
+				},
+			},
+		};
+	}
+
+	function updateChart(isDark = theme.isDark) {
 		if (!chartCanvas) return;
-		const { labels, wealth, pensionPot, isaPot, surplus } = buildChartData();
+		const { labels, pensionPot, isaPot, surplus } = buildChartData();
 
 		if (chart) {
 			chart.data.labels = labels;
 			chart.data.datasets[0].data = pensionPot;
 			chart.data.datasets[1].data = isaPot;
 			chart.data.datasets[2].data = surplus;
+			Object.assign(chart.options, buildChartOptions(isDark));
 			chart.update('none');
 			return;
 		}
@@ -110,39 +170,7 @@
 					},
 				],
 			},
-			options: {
-				responsive: true,
-				maintainAspectRatio: false,
-				interaction: { mode: 'index', intersect: false },
-				plugins: {
-					legend: {
-						labels: { color: '#e2e8f0', font: { family: 'inherit', size: 12 } },
-					},
-					tooltip: {
-						backgroundColor: '#1e293b',
-						titleColor: '#f1f5f9',
-						bodyColor: '#cbd5e1',
-						callbacks: {
-							label: (ctx) => ` ${ctx.dataset.label}: £${ctx.parsed.y.toLocaleString()}k`,
-						},
-					},
-				},
-				scales: {
-					x: {
-						ticks: { color: '#94a3b8', maxTicksLimit: 15 },
-						grid: { color: 'rgba(255,255,255,0.05)' },
-						title: { display: true, text: 'Age', color: '#94a3b8' },
-					},
-					y: {
-						ticks: {
-							color: '#94a3b8',
-							callback: (v) => `£${Number(v).toLocaleString()}k`,
-						},
-						grid: { color: 'rgba(255,255,255,0.05)' },
-						title: { display: true, text: 'Value (£k)', color: '#94a3b8' },
-					},
-				},
-			},
+			options: buildChartOptions(theme.isDark),
 		});
 	}
 
@@ -150,7 +178,6 @@
 
 	onMount(() => {
 		selfTestPassed = selfTest();
-		compute();
 	});
 
 	// ─── Helpers ───────────────────────────────────────────────────────────────
@@ -174,7 +201,7 @@
 			build your intuition.
 		</p>
 		{#if selfTestPassed !== null}
-			<span class="inline-block mt-2 text-xs px-2 py-0.5 rounded-full {selfTestPassed ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'}">
+			<span class="inline-block mt-2 text-xs px-2 py-0.5 rounded-full {selfTestPassed ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'}">
 				Tax engine {selfTestPassed ? '✓ verified' : '✗ self-test failed'}
 			</span>
 		{/if}
@@ -351,33 +378,33 @@
 						</div>
 						<div class="border-t border-border pt-2 flex justify-between">
 							<dt class="text-muted-foreground">Basic rate tax (20%)</dt>
-							<dd class="font-mono text-orange-400">−{fmt(taxBreakdown.incomeTax.basicRateTax)}</dd>
+							<dd class="font-mono text-orange-600 dark:text-orange-400">−{fmt(taxBreakdown.incomeTax.basicRateTax)}</dd>
 						</div>
 						{#if taxBreakdown.incomeTax.higherRateTax > 0}
 						<div class="flex justify-between">
 							<dt class="text-muted-foreground">Higher rate tax (40%)</dt>
-							<dd class="font-mono text-red-400">−{fmt(taxBreakdown.incomeTax.higherRateTax)}</dd>
+							<dd class="font-mono text-red-600 dark:text-red-400">−{fmt(taxBreakdown.incomeTax.higherRateTax)}</dd>
 						</div>
 						{/if}
 						{#if taxBreakdown.incomeTax.additionalRateTax > 0}
 						<div class="flex justify-between">
 							<dt class="text-muted-foreground">Additional rate tax (45%)</dt>
-							<dd class="font-mono text-red-600">−{fmt(taxBreakdown.incomeTax.additionalRateTax)}</dd>
+							<dd class="font-mono text-red-700 dark:text-red-600">−{fmt(taxBreakdown.incomeTax.additionalRateTax)}</dd>
 						</div>
 						{/if}
 						<div class="flex justify-between">
 							<dt class="text-muted-foreground">NI main (8%)</dt>
-							<dd class="font-mono text-orange-400">−{fmt(taxBreakdown.ni.mainRateNI)}</dd>
+							<dd class="font-mono text-orange-600 dark:text-orange-400">−{fmt(taxBreakdown.ni.mainRateNI)}</dd>
 						</div>
 						{#if taxBreakdown.ni.upperRateNI > 0}
 						<div class="flex justify-between">
 							<dt class="text-muted-foreground">NI upper (2%)</dt>
-							<dd class="font-mono text-orange-400">−{fmt(taxBreakdown.ni.upperRateNI)}</dd>
+							<dd class="font-mono text-orange-600 dark:text-orange-400">−{fmt(taxBreakdown.ni.upperRateNI)}</dd>
 						</div>
 						{/if}
 						<div class="border-t border-border pt-2 flex justify-between font-semibold">
 							<dt>Net take-home</dt>
-							<dd class="font-mono text-green-400">{fmt(taxBreakdown.takeHome)}</dd>
+							<dd class="font-mono text-green-600 dark:text-green-400">{fmt(taxBreakdown.takeHome)}</dd>
 						</div>
 						<div class="flex justify-between text-xs">
 							<dt class="text-muted-foreground">Effective tax rate</dt>
@@ -467,15 +494,15 @@
 							<tbody>
 								{#each years.filter((_, i) => i % 1 === 0) as y}
 								<tr class="border-b border-border/40 hover:bg-muted/30 transition-colors
-									{y.surplus < 0 ? 'text-red-400' : ''}
-									{y.age === profile.retirementAge ? 'bg-blue-900/20 font-semibold' : ''}
-									{y.age === STATE_PENSION_AGE ? 'bg-green-900/20' : ''}">
+									{y.surplus < 0 ? 'text-red-500 dark:text-red-400' : ''}
+									{y.age === profile.retirementAge ? 'bg-blue-100/60 dark:bg-blue-900/20 font-semibold' : ''}
+									{y.age === STATE_PENSION_AGE ? 'bg-green-100/60 dark:bg-green-900/20' : ''}">
 									<td class="px-3 py-1.5 tabular-nums">{y.age}</td>
 									<td class="px-3 py-1.5 text-right">
 										{#if y.age === profile.retirementAge}
-											<span class="text-blue-400">🎯 Retire</span>
+											<span class="text-blue-600 dark:text-blue-400">🎯 Retire</span>
 										{:else if y.age === 67 && y.isRetired}
-											<span class="text-green-400">🏛️ SP</span>
+											<span class="text-green-600 dark:text-green-400">🏛️ SP</span>
 										{:else if y.isWorking}
 											<span class="text-muted-foreground">Work</span>
 										{:else}
@@ -483,11 +510,11 @@
 										{/if}
 									</td>
 									<td class="px-3 py-1.5 text-right tabular-nums">{fmt(y.totalIncome)}</td>
-									<td class="px-3 py-1.5 text-right tabular-nums text-orange-400">
+									<td class="px-3 py-1.5 text-right tabular-nums text-orange-600 dark:text-orange-400">
 										{y.incomeTax + y.employeeNI > 0 ? fmt(y.incomeTax + y.employeeNI) : '—'}
 									</td>
 									<td class="px-3 py-1.5 text-right tabular-nums">{fmt(y.spending)}</td>
-									<td class="px-3 py-1.5 text-right tabular-nums {y.surplus >= 0 ? 'text-green-400' : 'text-red-400'}">
+									<td class="px-3 py-1.5 text-right tabular-nums {y.surplus >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
 										{y.surplus >= 0 ? '+' : ''}{fmt(y.surplus)}
 									</td>
 									<td class="px-3 py-1.5 text-right tabular-nums">{fmt(y.pensionPot)}</td>

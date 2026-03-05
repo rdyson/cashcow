@@ -2,7 +2,7 @@
 
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   --radius: 0.625rem;
@@ -118,4 +118,22 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Smooth theme transitions */
+html {
+  transition: background-color 0.25s ease-in-out;
+}
+
+body,
+.bg-background,
+.bg-card,
+.bg-muted,
+.border-border,
+.text-foreground,
+.text-muted-foreground {
+  transition:
+    background-color 0.25s ease-in-out,
+    color 0.25s ease-in-out,
+    border-color 0.25s ease-in-out;
 }
