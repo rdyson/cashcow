@@ -20,9 +20,9 @@
 <div class="fixed top-4 right-4 z-50">
 	<button
 		onclick={() => theme.toggle()}
-		class="flex items-center justify-center w-9 h-9 rounded-full border border-border bg-card text-foreground shadow-md hover:bg-muted transition-colors duration-200"
-		aria-label={theme.isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-		title={theme.isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+		class="btn btn-circle btn-ghost border border-base-content/20 shadow-md"
+		aria-label={theme.isDark ? 'Switch to luxury mode' : 'Switch to dark mode'}
+		title={theme.isDark ? 'Switch to luxury mode' : 'Switch to dark mode'}
 	>
 		{#if theme.isDark}
 			<!-- Sun icon -->
@@ -39,6 +39,6 @@
 	</button>
 </div>
 
-<div class="min-h-screen bg-background text-foreground">
+<div class="min-h-screen bg-base-100 text-base-content">
 	{@render children()}
 </div>

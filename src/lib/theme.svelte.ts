@@ -3,7 +3,8 @@ import { browser } from '$app/environment';
 const STORAGE_KEY = 'cashcow-theme';
 
 function createThemeStore() {
-	let isDark = $state(true);
+	// isDark = true means data-theme="dark", false means data-theme="luxury"
+	let isDark = $state(false);
 
 	return {
 		get isDark() {
@@ -14,25 +15,21 @@ function createThemeStore() {
 		init() {
 			if (!browser) return;
 			const stored = localStorage.getItem(STORAGE_KEY);
-			isDark = stored !== null ? stored === 'dark' : false;
+			isDark = stored === 'dark';
 			this.apply();
 		},
 
 		toggle() {
 			isDark = !isDark;
 			if (browser) {
-				localStorage.setItem(STORAGE_KEY, isDark ? 'dark' : 'light');
+				localStorage.setItem(STORAGE_KEY, isDark ? 'dark' : 'luxury');
 				this.apply();
 			}
 		},
 
 		apply() {
 			if (!browser) return;
-			if (isDark) {
-				document.documentElement.classList.add('dark');
-			} else {
-				document.documentElement.classList.remove('dark');
-			}
+			document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'luxury');
 		},
 	};
 }
