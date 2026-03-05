@@ -55,8 +55,8 @@
 		inflationRate: 0.025,
 	});
 
-	let years = $derived(runProjection(profile));
-	let outcome = $derived(classifyOutcome(years));
+	let years = $state<ProjectionYear[]>([]);
+	let outcome = $state<ProjectionOutcome | null>(null);
 	let taxBreakdown = $derived(calculateTakeHome(profile.salary));
 	let selfTestPassed = $state<boolean | null>(null);
 
@@ -65,11 +65,16 @@
 
 	// ─── Compute ───────────────────────────────────────────────────────────────
 
-	// Update chart whenever years or theme changes
+	function compute() {
+		years = runProjection(profile);
+		outcome = classifyOutcome(years);
+		updateChart();
+	}
+
 	$effect(() => {
-		const _ = years; // track years
-		const isDark = theme.isDark; // track theme
-		updateChart(isDark);
+		// Reactive: recompute whenever profile changes
+		const _ = { ...profile };
+		compute();
 	});
 
 	// ─── Chart ────────────────────────────────────────────────────────────────
@@ -121,7 +126,7 @@
 		};
 	}
 
-	function updateChart(isDark = theme.isDark) {
+	function updateChart() {
 		if (!chartCanvas) return;
 		const { labels, pensionPot, isaPot, surplus } = buildChartData();
 
@@ -130,7 +135,6 @@
 			chart.data.datasets[0].data = pensionPot;
 			chart.data.datasets[1].data = isaPot;
 			chart.data.datasets[2].data = surplus;
-			Object.assign(chart.options, buildChartOptions(isDark));
 			chart.update('none');
 			return;
 		}
@@ -174,10 +178,25 @@
 		});
 	}
 
+	function applyChartTheme(isDark: boolean) {
+		if (!chart) return;
+		const opts = buildChartOptions(isDark);
+		// @ts-expect-error deep option merge
+		Object.assign(chart.options, opts);
+		chart.update('none');
+	}
+
+	// Re-theme chart when dark mode changes
+	$effect(() => {
+		const isDark = theme.isDark;
+		applyChartTheme(isDark);
+	});
+
 	// ─── Lifecycle ─────────────────────────────────────────────────────────────
 
 	onMount(() => {
 		selfTestPassed = selfTest();
+		compute();
 	});
 
 	// ─── Helpers ───────────────────────────────────────────────────────────────
