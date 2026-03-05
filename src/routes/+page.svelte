@@ -324,7 +324,7 @@
 			<div class="card bg-base-200 shadow-xl">
 				<div class="card-body gap-3 p-5">
 					<h2 class="card-title text-base text-primary">Assumptions</h2>
-					<div class="grid grid-cols-3 gap-2">
+					<div class="grid grid-cols-1 gap-2">
 						<fieldset class="fieldset p-0">
 							<legend class="fieldset-legend text-xs text-base-content/70">Salary Growth</legend>
 							<label class="input input-sm w-full">
