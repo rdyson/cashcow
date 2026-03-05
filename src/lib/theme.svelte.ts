@@ -14,7 +14,7 @@ function createThemeStore() {
 		init() {
 			if (!browser) return;
 			const stored = localStorage.getItem(STORAGE_KEY);
-			isDark = stored !== null ? stored === 'dark' : true;
+			isDark = stored !== null ? stored === 'dark' : false;
 			this.apply();
 		},
 
