@@ -55,8 +55,8 @@
 		inflationRate: 0.025,
 	});
 
-	let years = $state<ProjectionYear[]>([]);
-	let outcome = $state<ProjectionOutcome | null>(null);
+	let years = $derived(runProjection(profile));
+	let outcome = $derived(classifyOutcome(years));
 	let taxBreakdown = $derived(calculateTakeHome(profile.salary));
 	let selfTestPassed = $state<boolean | null>(null);
 
@@ -65,16 +65,11 @@
 
 	// ─── Compute ───────────────────────────────────────────────────────────────
 
-	function compute() {
-		years = runProjection(profile);
-		outcome = classifyOutcome(years);
-		updateChart();
-	}
-
+	// Single effect: update chart when data or theme changes
 	$effect(() => {
-		// Reactive: recompute whenever profile changes
-		const _ = { ...profile };
-		compute();
+		const _years = years; // track projection data
+		const isDark = theme.isDark; // track theme
+		updateChart(isDark);
 	});
 
 	// ─── Chart ────────────────────────────────────────────────────────────────
@@ -126,7 +121,7 @@
 		};
 	}
 
-	function updateChart() {
+	function updateChart(isDark = theme.isDark) {
 		if (!chartCanvas) return;
 		const { labels, pensionPot, isaPot, surplus } = buildChartData();
 
@@ -135,6 +130,7 @@
 			chart.data.datasets[0].data = pensionPot;
 			chart.data.datasets[1].data = isaPot;
 			chart.data.datasets[2].data = surplus;
+			Object.assign(chart.options, buildChartOptions(isDark));
 			chart.update('none');
 			return;
 		}
@@ -178,25 +174,10 @@
 		});
 	}
 
-	function applyChartTheme(isDark: boolean) {
-		if (!chart) return;
-		const opts = buildChartOptions(isDark);
-		// @ts-expect-error deep option merge
-		Object.assign(chart.options, opts);
-		chart.update('none');
-	}
-
-	// Re-theme chart when dark mode changes
-	$effect(() => {
-		const isDark = theme.isDark;
-		applyChartTheme(isDark);
-	});
-
 	// ─── Lifecycle ─────────────────────────────────────────────────────────────
 
 	onMount(() => {
 		selfTestPassed = selfTest();
-		compute();
 	});
 
 	// ─── Helpers ───────────────────────────────────────────────────────────────
