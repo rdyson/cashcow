@@ -4,6 +4,12 @@
   themes: corporate --default, night --prefersdark;
 }
 
+/* Override warning colour to orange in light mode for better readability */
+[data-theme="corporate"] {
+  --color-warning: oklch(70% 0.18 50);
+  --color-warning-content: oklch(20% 0.05 50);
+}
+
 /* Smooth theme transitions */
 html {
   transition: background-color 0.25s ease-in-out, color 0.25s ease-in-out;
