@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="luxury">
+<html lang="en" data-theme="corporate">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -8,7 +8,7 @@
 			(function () {
 				var stored = null;
 				try { stored = localStorage.getItem('cashcow-theme'); } catch (e) {}
-				document.documentElement.setAttribute('data-theme', stored === 'dark' ? 'dark' : 'luxury');
+				document.documentElement.setAttribute('data-theme', stored === 'night' ? 'night' : 'corporate');
 			})();
 		</script>
 		%sveltekit.head%
